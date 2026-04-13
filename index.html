@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NaijaRemitLock - Purpose Locked Remittances for Nigeria</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #764ba2;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            display: none;
+        }
+        .lockbox {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: calc(100% - 20px);
+        }
+        .connected {
+            color: green;
+            font-weight: bold;
+        }
+        .disconnected {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🇳🇬 NaijaRemitLock</h1>
+        <div class="subtitle">Purpose-Locked Remittances for Nigeria</div>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <button id="connectBtn">🔌 Connect Freighter Wallet</button>
+            <span id="walletStatus" class="disconnected">Not Connected</span>
+        </div>
+
+        <div id="walletInfo" style="display:none; text-align:center; margin:10px 0;">
+            <p>✅ Wallet Connected: <span id="walletAddress"></span></p>
+        </div>
+
+        <hr>
+
+        <h3>Create New Lockbox</h3>
+        <div>
+            <input type="text" id="beneficiary" placeholder="Beneficiary Address">
+            <select id="purpose">
+                <option value="school">🏫 School Fees</option>
+                <option value="rent">🏠 Rent</option>
+                <option value="business">💼 Business</option>
+                <option value="hospital">🏥 Hospital Bill</option>
+            </select>
+            <input type="number" id="amount" placeholder="Amount (XLM)">
+            <input type="date" id="releaseDate">
+            <button id="createBtn">🔒 Create Lockbox</button>
+        </div>
+
+        <hr>
+
+        <h3>Your Lockboxes</h3>
+        <div id="lockboxesList">
+            <p style="color: #666;">Connect wallet to see your lockboxes</p>
+        </div>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        let walletConnected = false;
+        let publicKey = null;
+
+        const connectBtn = document.getElementById('connectBtn');
+        const walletStatus = document.getElementById('walletStatus');
+        const walletInfo = document.getElementById('walletInfo');
+        const walletAddress = document.getElementById('walletAddress');
+        const createBtn = document.getElementById('createBtn');
+        const statusDiv = document.getElementById('status');
+        const lockboxesList = document.getElementById('lockboxesList');
+
+        function showStatus(msg, isError = false) {
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = isError ? '#ffe0e0' : '#e0ffe0';
+            statusDiv.style.color = isError ? 'red' : 'green';
+            statusDiv.innerHTML = msg;
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        connectBtn.addEventListener('click', async () => {
+            if (window.freighter) {
+                try {
+                    const { address } = await window.freighter.getPublicKey();
+                    publicKey = address;
+                    walletConnected = true;
+                    walletStatus.textContent = '✅ Connected';
+                    walletStatus.className = 'connected';
+                    walletAddress.textContent = publicKey.slice(0, 10) + '...' + publicKey.slice(-6);
+                    walletInfo.style.display = 'block';
+                    showStatus('Wallet connected successfully!');
+                    loadLockboxes();
+                } catch (e) {
+                    showStatus('Error connecting wallet: ' + e.message, true);
+                }
+            } else {
+                showStatus('Please install Freighter wallet extension from stellar.org/freighter', true);
+            }
+        });
+
+        async function loadLockboxes() {
+            if (!walletConnected) return;
+            
+            try {
+                const response = await fetch('https://naija-remit-lock-backend.onrender.com/lockboxes');
+                const data = await response.json();
+                
+                if (data.lockboxes && data.lockboxes.length > 0) {
+                    lockboxesList.innerHTML = data.lockboxes.map(lb => `
+                        <div class="lockbox">
+                            <strong>Purpose:</strong> ${lb.purpose}<br>
+                            <strong>Amount:</strong> ${lb.amount} XLM<br>
+                            <strong>Status:</strong> ${lb.status}
+                        </div>
+                    `).join('');
+                } else {
+                    lockboxesList.innerHTML = '<p>No lockboxes yet. Create one above!</p>';
+                }
+            } catch (e) {
+                lockboxesList.innerHTML = '<p>Demo mode: Create a lockbox to see it here</p>';
+            }
+        }
+
+        createBtn.addEventListener('click', async () => {
+            if (!walletConnected) {
+                showStatus('Please connect your wallet first', true);
+                return;
+            }
+
+            const beneficiary = document.getElementById('beneficiary').value;
+            const purpose = document.getElementById('purpose').options[document.getElementById('purpose').selectedIndex].text;
+            const amount = document.getElementById('amount').value;
+            const releaseDate = document.getElementById('releaseDate').value;
+
+            if (!beneficiary || !amount || !releaseDate) {
+                showStatus('Please fill all fields', true);
+                return;
+            }
+
+            showStatus('Creating lockbox on Stellar... (Demo mode - full contract integration coming soon)');
+            
+            const newLockbox = {
+                purpose: purpose,
+                amount: amount,
+                status: 'locked'
+            };
+            
+            if (lockboxesList.innerHTML.includes('No lockboxes') || lockboxesList.innerHTML.includes('Connect wallet')) {
+                lockboxesList.innerHTML = '';
+            }
+            
+            const newDiv = document.createElement('div');
+            newDiv.className = 'lockbox';
+            newDiv.innerHTML = `
+                <strong>Purpose:</strong> ${purpose}<br>
+                <strong>Amount:</strong> ${amount} XLM<br>
+                <strong>Beneficiary:</strong> ${beneficiary.slice(0, 10)}...<br>
+                <strong>Release Date:</strong> ${releaseDate}<br>
+                <strong>Status:</strong> locked
+            `;
+            lockboxesList.prepend(newDiv);
+            
+            document.getElementById('beneficiary').value = '';
+            document.getElementById('amount').value = '';
+            document.getElementById('releaseDate').value = '';
+            
+            showStatus('Lockbox created! (Demo mode)');
+        });
+    </script>
+</body>
+</html>
