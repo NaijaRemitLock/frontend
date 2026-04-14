@@ -4,7 +4,7 @@
 
 If you discover a security vulnerability in NaijaRemitLock, please **DO NOT** create a public issue.
 
-Instead, please email us at: **security@naija-remitlock.com**
+Instead, please email us at: **calebbola45@gmail.com**
 
 Please include:
 - Description of the vulnerability
@@ -44,7 +44,7 @@ As a user of NaijaRemitLock:
 
 ## Questions?
 
-For security questions, contact: **security@naija-remitlock.com**
+For security questions, contact: **calebbola45@gmail.com**
 
 ---
 
